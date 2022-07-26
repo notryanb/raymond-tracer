@@ -2,8 +2,6 @@ use macroquad::prelude::*;
 use std::f32::consts::{PI, TAU};
 
 const SQUARES: i16 = 8;
-type Point = (i16, i16);
-
 const DR: f32 = 0.0174533;
 
 pub struct Player {
@@ -35,7 +33,7 @@ fn window_config() -> Conf {
 async fn main() {
     // let mut last_update = get_time();
     // let speed = 0.3;
-    let map: [u8; 8 * 8] = [
+    let map: [u8; (SQUARES * SQUARES) as usize] = [
         1, 1, 1, 1, 1, 1, 1, 1,
         1, 0, 1, 0, 0, 0, 0, 1,
         1, 0, 1, 0, 0, 0, 0, 1,
@@ -62,14 +60,16 @@ async fn main() {
         // Draw map
         let mut square_color = DARKGRAY;
 
-        for y in 0..8 {
-            for x in 0..8 {
-                if map[(y * 8 + x) as usize] == 1 {
+        for y in 0..SQUARES {
+            for x in 0..SQUARES {
+                if map[(y * SQUARES + x) as usize] == 1 {
                     square_color = WHITE;
                 } else { 
                     square_color = BLACK;
                 }
 
+                // instead of using 64, use the screen width & height
+                // divided by the number of squares we're using to represent the map
                 let scaled_x = x as f32 * 64.;
                 let scaled_y = y as f32 * 64.;
 
@@ -86,10 +86,66 @@ async fn main() {
 
 
         // Handle input
-        let movement_speed = 5.;
+        let turning_speed = 5.;
+        let movement_speed = 0.4;
+
+        // The tutorial changes player delta values fro radians to degrees.
+        //println!("player.delta_x = {}, player.delta_y = {}", &player.delta_x, &player.delta_y);
+        //println!("player.x_pos = {}, player.y_pos = {}", &player.x_pos, &player.y_pos);
+
+        /*
+         * delta_y is < 0 when pointing up   : -
+         * delta_y is > 0 when pointing down : +
+         *
+         * delta_x is < 0 when pointing left  : -
+         * delta_x is > 0 when pointing right : +
+         *
+         * Origin is top left
+         * y increases as move down
+         * x increases as move right
+         *
+         */
+
+        // create boundary offsets in pixels
+        let player_x_wall_offset = if  player.delta_x < 0.0 {
+            -15.0 // facing left, put an offset to the left (-)
+        } else {
+            15.0 // facing right, put an offset to the right (+)
+        };
+        
+        let player_y_wall_offset = if  player.delta_y < 0.0 {
+            -15.0 // facing up, put an offset to the top (-)
+        } else {
+            15.0 // facing down, put an offset to the bottom (+)
+        };
+
+        // To get which square (grid pos)  we're in, divide the pixel by 64,
+        // because each square is 64x64 pixels
+        // To create a boundary in pixels, add / subtract a small amount from each position in
+        // pixels, then convert it to the grid as well.
+        // Both x and y grid positions will be 0 < grid pos < 8
+        let grid_pos_x = player.x_pos / 64.0;
+        let grid_pos_x_add = (player.x_pos + player_x_wall_offset) / 64.0;
+        let grid_pos_x_sub = (player.x_pos - player_x_wall_offset) / 64.0;
+        
+        let grid_pos_y = player.y_pos / 64.0;
+        let grid_pos_y_add = (player.y_pos + player_y_wall_offset) / 64.0;
+        let grid_pos_y_sub = (player.y_pos - player_y_wall_offset) / 64.0;
+
         if is_key_down(KeyCode::W) {
-            player.y_pos += player.delta_y;
-            player.x_pos += player.delta_x;
+            // checks the next grid to the left or right depending on which direction we're facing
+            let map_idx_x = grid_pos_y.floor() * SQUARES as f32 + grid_pos_x_add.floor();
+
+            if map[map_idx_x as usize] == 0 {
+                player.x_pos  += player.delta_x * movement_speed;
+            }
+
+            // checks the next grid to the top or bottom depending on which direction we're facing
+            let map_idx_y = grid_pos_y_add.floor() * SQUARES as f32 + grid_pos_x.floor();
+
+            if map[map_idx_y as usize] == 0 {
+                player.y_pos  += player.delta_y * movement_speed;
+            }
         } else if is_key_down(KeyCode::A) {
             player.angle -= 0.05;
 
@@ -97,11 +153,22 @@ async fn main() {
                 player.angle += TAU;
             }
 
-            player.delta_x = player.angle.cos() * movement_speed;
-            player.delta_y = player.angle.sin() * movement_speed;            
+            player.delta_x = player.angle.cos() * turning_speed;
+            player.delta_y = player.angle.sin() * turning_speed;            
         } else if is_key_down(KeyCode::S) {
-            player.y_pos -= player.delta_y;
-            player.x_pos -= player.delta_x;
+            // checks the next grid to the left or right depending on which direction we're facing
+            let map_idx_x = grid_pos_y.floor() * SQUARES as f32 + grid_pos_x_sub.floor();
+
+            if map[map_idx_x as usize] == 0 {
+                player.x_pos -= player.delta_x * movement_speed;
+            }
+
+            // checks the next grid to the top or bottom depending on which direction we're facing
+            let map_idx_y = grid_pos_y_sub.floor() * SQUARES as f32 + grid_pos_x.floor();
+
+            if map[map_idx_y as usize] == 0 {
+                player.y_pos -= player.delta_y * movement_speed;
+            }
         } else if is_key_down(KeyCode::D) {
             player.angle += 0.05;
 
@@ -109,8 +176,8 @@ async fn main() {
                 player.angle -= TAU;
             }
 
-            player.delta_x = player.angle.cos() * movement_speed;
-            player.delta_y = player.angle.sin() * movement_speed;
+            player.delta_x = player.angle.cos() * turning_speed;
+            player.delta_y = player.angle.sin() * turning_speed;
         }
 
         // Draw player
@@ -125,8 +192,8 @@ async fn main() {
         draw_line(
             player.x_pos,
             player.y_pos, 
-            player.x_pos + player.delta_x * movement_speed, 
-            player.y_pos + player.delta_y * movement_speed,
+            player.x_pos + player.delta_x * turning_speed, 
+            player.y_pos + player.delta_y * turning_speed,
             3.0,
             player.color
         );
