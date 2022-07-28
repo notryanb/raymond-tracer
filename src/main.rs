@@ -133,6 +133,7 @@ async fn main() {
         let grid_pos_y_sub = (player.y_pos - player_y_wall_offset) / 64.0;
 
         if is_key_down(KeyCode::W) {
+            println!("pressing W");
             // checks the next grid to the left or right depending on which direction we're facing
             let map_idx_x = grid_pos_y.floor() * SQUARES as f32 + grid_pos_x_add.floor();
 
@@ -146,7 +147,10 @@ async fn main() {
             if map[map_idx_y as usize] == 0 {
                 player.y_pos  += player.delta_y * movement_speed;
             }
-        } else if is_key_down(KeyCode::A) {
+        }
+
+        if is_key_down(KeyCode::A) {
+            println!("pressing A");
             player.angle -= 0.05;
 
             if player.angle < 0. {
@@ -155,7 +159,9 @@ async fn main() {
 
             player.delta_x = player.angle.cos() * turning_speed;
             player.delta_y = player.angle.sin() * turning_speed;            
-        } else if is_key_down(KeyCode::S) {
+        } 
+
+        if is_key_down(KeyCode::S) {
             // checks the next grid to the left or right depending on which direction we're facing
             let map_idx_x = grid_pos_y.floor() * SQUARES as f32 + grid_pos_x_sub.floor();
 
@@ -169,7 +175,9 @@ async fn main() {
             if map[map_idx_y as usize] == 0 {
                 player.y_pos -= player.delta_y * movement_speed;
             }
-        } else if is_key_down(KeyCode::D) {
+        } 
+
+        if is_key_down(KeyCode::D) {
             player.angle += 0.05;
 
             if player.angle > TAU {
